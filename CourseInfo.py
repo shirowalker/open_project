@@ -29,3 +29,12 @@ class CourseInfo:
     def get_info(self):
         return str(self.course_chinese_name.encode('gb2312')) + ": " + str(self.course_credit).encode('gb2312') + "---" + str(self.course_score).encode('gb2312')
         # return str(self.course_chinese_name.encode('utf-8')) + ": " + str(self.course_credit).encode('utf-8') + "---" + str(self.course_score).encode('utf-8')
+
+
+class StatisticsResult:
+    def __init__(self, study_id, total_course_num, pass_course_num, master_weighted_average, total_weighted_average):
+        self.study_id = study_id                                    # 学号
+        self.total_course_num = total_course_num                    # 课程总数
+        self.pass_course_num = pass_course_num                      # 通过门数
+        self.master_weighted_average = master_weighted_average      # 必修加权
+        self.total_weighted_average = total_weighted_average        # 总加权

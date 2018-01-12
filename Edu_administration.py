@@ -1,9 +1,10 @@
-# coding=gb2312
+# coding=utf8
 import codecs
 import requests
 import re
-import CourseInfo
+from CourseInfo import *
 import DBTest
+from exception.MyException import *
 
 baseUrl = 'http://zhjw.dlut.edu.cn/'
 url = 'http://zhjw.dlut.edu.cn/loginAction.do'
@@ -19,26 +20,94 @@ headers = {
 }
 
 
+def statistic(study_id):
+
+    # å¿…ä¿®ç§‘ç›®
+    master = []
+    # é€šè¿‡é—¨æ•°
+    pass_num = 0
+    # æ€»å­¦åˆ†æ•°
+    total_credit = 0
+    # æ€»åˆ†
+    total_score = 0
+    # å¿…ä¿®æ€»å­¦åˆ†æ•°
+    master_total_credit = 0
+    # å¿…ä¿®æ€»åˆ†
+    master_total_score = 0
+
+    courses = DBTest.query_course(study_id=study_id)
+    for index, course in enumerate(courses):
+        if course.course_score >= 60:
+            pass_num = pass_num + 1
+        if course.course_type == u'å¿…ä¿®':
+            master.append(course)
+            master_total_score = master_total_score + course.course_score * course.course_credit
+            master_total_credit = master_total_credit + course.course_credit
+        total_credit = total_credit + course.course_credit
+        total_score = total_score + course.course_score * course.course_credit
+
+    print("")
+    mw = 0
+    w = 0
+    if master_total_credit != 0:
+        mw = master_total_score / master_total_credit
+    if total_credit != 0:
+        w = total_score / total_credit
+    return StatisticsResult(study_id, len(courses), pass_num, mw, w)
+
+
+def my_login(usn, psd):
+    """
+        ç™»å½•å‡½æ•°ï¼ˆæœ¬åœ°cookieè¿˜æœ‰æ•ˆåˆ™ç”¨æœ¬åœ°cookieï¼Œæ— æ•ˆåˆ™è¯·æ±‚ç™»å½•å¹¶è·å¾—cookieï¼‰
+        :param usn: ç”¨æˆ·å
+        :param psd: å¯†ç 
+        :return: è¿”å›cookie
+        """
+    data = {'zjh': usn, 'mm': psd}
+    # JSESSIONID = DBTest.query_user(usn)
+    # # åœ¨æ•°æ®åº“ä¸­æœ‰cookieçš„æƒ…å†µä¸‹ï¼Œæµ‹è¯•ä¸€ä¸‹cookieé€šä¸é€š
+    # # å¦‚æœè¿æ¥çš„é€šï¼Œè¯´æ˜æœ¬åœ°çš„cookieè¿˜æœ‰æ•ˆï¼Œç›´æ¥è¿”å›å°±å¥½äº†
+    # if JSESSIONID != u"" and test_connect(JSESSIONID=JSESSIONID):
+    #     return JSESSIONID
+
+    # å¦‚æœæœ¬åœ°æ— è®°å½•æˆ–è€…è¯´æœ¬åœ°cookieå·²ç»å¤±æ•ˆï¼Œåˆ™é‡æ–°è·å–cookie
+    response = requests.post(url=url, data=data, headers=headers)
+    errtip = re.findall('class="errorTop"><strong><font color="#990000">(.*?)</font>', response.text, re.I | re.S)
+    if len(errtip) == 0:  # ç™»å½•æˆåŠŸ
+        print('ç™»å½•æˆåŠŸ')
+        return response.cookies.values()[0]
+    else:  # ç™»å½•å¤±è´¥
+        errinfo = errtip[0].encode('utf-8')
+        if errinfo == 'æ‚¨çš„å¯†ç ä¸æ­£ç¡®ï¼Œè¯·æ‚¨é‡æ–°è¾“å…¥ï¼':
+            raise PasswordNotCorrectException(errinfo)
+        elif errinfo == 'ä½ è¾“å…¥çš„è¯ä»¶å·ä¸å­˜åœ¨ï¼Œè¯·æ‚¨é‡æ–°è¾“å…¥ï¼':
+            raise UserNotExistException(errinfo)
+        print(errinfo)
+    return response.cookies.values()[0]
+
+
 def login(usn, psd):
     """
-    µÇÂ¼º¯Êı£¨±¾µØcookie»¹ÓĞĞ§ÔòÓÃ±¾µØcookie£¬ÎŞĞ§ÔòÇëÇóµÇÂ¼²¢»ñµÃcookie£©
-    :param usn: ÓÃ»§Ãû
-    :param psd: ÃÜÂë
-    :return: ·µ»Øcookie
+    ç™»å½•å‡½æ•°ï¼ˆæœ¬åœ°cookieè¿˜æœ‰æ•ˆåˆ™ç”¨æœ¬åœ°cookieï¼Œæ— æ•ˆåˆ™è¯·æ±‚ç™»å½•å¹¶è·å¾—cookieï¼‰
+    :param usn: ç”¨æˆ·å
+    :param psd: å¯†ç 
+    :return: è¿”å›cookie
     """
     cookies = {}
     data = {}
     JSESSIONID = DBTest.query_user(usn)
-    # ÔÚÊı¾İ¿âÖĞÓĞcookieµÄÇé¿öÏÂ£¬²âÊÔÒ»ÏÂcookieÍ¨²»Í¨
-    # Èç¹ûÁ¬½ÓµÄÍ¨£¬ËµÃ÷±¾µØµÄcookie»¹ÓĞĞ§£¬Ö±½Ó·µ»Ø¾ÍºÃÁË
+    # åœ¨æ•°æ®åº“ä¸­æœ‰cookieçš„æƒ…å†µä¸‹ï¼Œæµ‹è¯•ä¸€ä¸‹cookieé€šä¸é€š
+    # å¦‚æœè¿æ¥çš„é€šï¼Œè¯´æ˜æœ¬åœ°çš„cookieè¿˜æœ‰æ•ˆï¼Œç›´æ¥è¿”å›å°±å¥½äº†
     if JSESSIONID != u"" and test_connect(JSESSIONID=JSESSIONID):
         cookies["JSESSIONID"] = JSESSIONID
         return cookies
 
-    # Èç¹û±¾µØÎŞ¼ÇÂ¼»òÕßËµ±¾µØcookieÒÑ¾­Ê§Ğ§£¬ÔòÖØĞÂ»ñÈ¡cookie
+    # å¦‚æœæœ¬åœ°æ— è®°å½•æˆ–è€…è¯´æœ¬åœ°cookieå·²ç»å¤±æ•ˆï¼Œåˆ™é‡æ–°è·å–cookie
     data['zjh'] = usn
     data['mm'] = psd
     response = requests.post(url=url, data=data, headers=headers)
+
+    print(response)
     cookies['JSESSIONID'] = response.cookies.values()[0]
     DBTest.insert_or_update_user(usn, cookies['JSESSIONID'])
     return cookies
@@ -46,9 +115,9 @@ def login(usn, psd):
 
 def test_connect(JSESSIONID):
     """
-    ²âÊÔcookieÊÇ·ñ»¹ÓĞĞ§
+    æµ‹è¯•cookieæ˜¯å¦è¿˜æœ‰æ•ˆ
     :param JSESSIONID:
-    :return: ²âÊÔ³É¹¦Ôò·µ»ØTrue
+    :return: æµ‹è¯•æˆåŠŸåˆ™è¿”å›True
     """
     c = {'JSESSIONID': JSESSIONID}
     response = requests.get(url=baseScoreUrl, headers=headers, cookies=c)
@@ -57,14 +126,14 @@ def test_connect(JSESSIONID):
         return False
     title = re.findall('<title>(.*?)</title>', response.text, re.I | re.S)
     print type(title[0])
-    if title[0] == u'µÇÂ¼³¬Ê±':
+    if title[0] == u'ç™»å½•è¶…æ—¶':
         return False
     return True
 
 
 def get_score(study_id, cookies):
     """
-    Í¨¹ıÑ§ºÅºÍcookie»ñÈ¡³É¼¨£¬²¢²åÈëµ½Êı¾İ¿âµ±ÖĞ
+    é€šè¿‡å­¦å·å’Œcookieè·å–æˆç»©ï¼Œå¹¶æ’å…¥åˆ°æ•°æ®åº“å½“ä¸­
     :param study_id:
     :param cookies:
     :return:
@@ -73,7 +142,7 @@ def get_score(study_id, cookies):
     print response.text
     results = re.findall('name="lnqbIfra" src="(.*?)#', response.text, re.I | re.S)
     if len(results) == 0:
-        print 'Î´²éÑ¯µ½³É¼¨£¬ÇëÏÈÍê³É½ÌÑ§ÆÀ¹À'
+        print 'æœªæŸ¥è¯¢åˆ°æˆç»©ï¼Œè¯·å…ˆå®Œæˆæ•™å­¦è¯„ä¼°'
         return False
     newUrl_back = results[0]
 
@@ -82,19 +151,19 @@ def get_score(study_id, cookies):
     if response.status_code == 200:
         deal_data(study_id, response.text)
     else:
-        print '»ñÈ¡³É¼¨Ê§°Ü'
+        print 'è·å–æˆç»©å¤±è´¥'
 
 
 def deal_data(study_id, html_text):
     """
-    ´¦ÀíÅÀµ½µÄ³É¼¨Êı¾İ£¬²¢²åÈëµ½Êı¾İ¿âµ±ÖĞ
+    å¤„ç†çˆ¬åˆ°çš„æˆç»©æ•°æ®ï¼Œå¹¶æ’å…¥åˆ°æ•°æ®åº“å½“ä¸­
     :param study_id:
     :param html_text:
     :return:
     """
     first = re.findall('<tr class="odd"(.*?)</tr>', html_text, re.S | re.I)
     if len(first) == 0:
-        print 'Ã»ÓĞ×¥µ½Êı¾İ'
+        print 'æ²¡æœ‰æŠ“åˆ°æ•°æ®'
         return
     first[0].encode('gb2312')
     # f = codecs.open('data.txt', 'w', 'gb2312')
@@ -103,21 +172,21 @@ def deal_data(study_id, html_text):
     for course_item in first:
         second = re.findall('>(.*?)</td>', course_item, re.S | re.I)
         print second[0]
-        course = CourseInfo.CourseInfo(study_id,
-                                       "".join(second[1].split()),
-                                       "".join(second[2].split()),
-                                       "".join(second[3].split()),
-                                       "".join(second[4].split()),
-                                       "".join(second[5].split()),
-                                       "".join(re.findall('"center">(.*?)&nbsp;', second[6])[0]),
-                                       "".join(re.findall('"center">(.*)', second[0], re.S | re.I)[0].split()))
+        course = CourseInfo(study_id,
+                            "".join(second[1].split()),
+                            "".join(second[2].split()),
+                            "".join(second[3].split()),
+                            "".join(second[4].split()),
+                            "".join(second[5].split()),
+                            "".join(re.findall('"center">(.*?)&nbsp;', second[6])[0]),
+                            "".join(re.findall('"center">(.*)', second[0], re.S | re.I)[0].split()))
         courses.append(course)
         # f.write(course.get_info())
         # f.write('\n')
     if DBTest.insert_or_update_course(courses):
-        print "²åÈëµ½Êı¾İ¿â³É¹¦"
+        print "æ’å…¥åˆ°æ•°æ®åº“æˆåŠŸ"
     else:
-        print "²åÈëµ½Êı¾İ¿âÊ§°Ü"
+        print "æ’å…¥åˆ°æ•°æ®åº“å¤±è´¥"
 
         # print total_score
         # print total_credit
@@ -128,9 +197,9 @@ def deal_data(study_id, html_text):
 
 def calculate_avr_score(study_id, excepts):
     """
-    ¼ÆËã¼ÓÈ¨¾ù·Ö
-    :param study_id:        Ñ§ºÅ
-    :param excepts:         ÒªÈ¥³ıµÄ¿ÆÄ¿µÄË÷Òı
+    è®¡ç®—åŠ æƒå‡åˆ†
+    :param study_id:        å­¦å·
+    :param excepts:         è¦å»é™¤çš„ç§‘ç›®çš„ç´¢å¼•
     :return:
     """
     total_score = 0
@@ -138,12 +207,12 @@ def calculate_avr_score(study_id, excepts):
     courses = DBTest.query_course(study_id=study_id)
     total_num = 0
     for index, course in enumerate(courses):
-        if course.course_type == u'±ØĞŞ' and index + 1 not in excepts:
+        if course.course_type == u'å¿…ä¿®' and index + 1 not in excepts:
             total_score = total_score + float(course.course_score) * float(course.course_credit)
             total_credit = total_credit + float(course.course_credit)
             print str(index + 1) + "." + str(course.get_info())
             total_num = total_num + 1
-    print "×Ü¹²¼ÆËãµÄ¿ÆÄ¿ÊıÎª£º" + str(total_num)
+    print "æ€»å…±è®¡ç®—çš„ç§‘ç›®æ•°ä¸ºï¼š" + str(total_num)
     if total_credit != 0:
         return total_score / total_credit
     return 0
@@ -151,9 +220,16 @@ def calculate_avr_score(study_id, excepts):
 
 def query_course(study_id):
     courses = DBTest.query_course(study_id)
-    for course in courses:
-        print course.get_info()
+    # for course in courses:
+    #     print course.get_info()
+    return courses
 
+
+def ifEmptyLoad(study_id, cookies):
+    courses = query_course(study_id)
+    if len(courses) == 0:
+        get_score(study_id, cookies)
+        query_course(study_id)
 
 # username = "201592362"
 # password = "19970825"
@@ -167,50 +243,52 @@ password = 'qq4538'
 # print login(username, password)
 # test_connect(cookie['JSESSIONID'])
 # get_score(username, login(usn=username, psd=password))
-# print "".join({'ÒÑÑ¡¿ÆÄ¿µÄ¼ÓÈ¨¾ù·ÖÎª£º', str(calculate_avr_score(username, [28, 44, 47, 48, 49, 40, 41, 42, 29, 31, 32, 19, 20, 21, 22, 9, 10, 13, 14, 15, 16, 45, 46]))})
+# print "".join({'å·²é€‰ç§‘ç›®çš„åŠ æƒå‡åˆ†ä¸ºï¼š', str(calculate_avr_score(username, [28, 44, 47, 48, 49, 40, 41, 42, 29, 31, 32, 19, 20, 21, 22, 9, 10, 13, 14, 15, 16, 45, 46]))})
 # getScore(username, 'http://zhjw.dlut.edu.cn/gradeLnAllAction.do?type=ln&oper=fainfo&fajhh=6747', c)
 # getMainFrame('JSESSIONID=uxzUQ2sZKNaL6b_icFZZv')
 
 def show_operator():
-    print "Äã¿ÉÒÔÖ´ĞĞÒÔÏÂ²Ù×÷:"
-    print '1.²éÑ¯ËùÓĞ¿ÆÄ¿ĞÅÏ¢\t\t' + '2.²éÑ¯±ØĞŞ¿ÆÄ¿¼ÓÈ¨\t\t'
-    print '3.¼ÆËã¼ÓÈ¨È¥³ı¿ÆÄ¿\t\t' + '4.ÔÚÏß»ñÈ¡³É¼¨ĞÅÏ¢\t\t'
+    print "ä½ å¯ä»¥æ‰§è¡Œä»¥ä¸‹æ“ä½œ:"
+    print '1.æŸ¥è¯¢æ‰€æœ‰ç§‘ç›®ä¿¡æ¯\t\t' + '2.æŸ¥è¯¢å¿…ä¿®ç§‘ç›®åŠ æƒ\t\t'
+    print '3.è®¡ç®—åŠ æƒå»é™¤ç§‘ç›®\t\t' + '4.åœ¨çº¿è·å–æˆç»©ä¿¡æ¯\t\t'
     print "5.exit"
 
 
-while True:
-    usn = str(input("Please input your study id: "))
-    psd = str(raw_input("Please input your psd:"))
-    if login(usn=usn, psd=psd):
-        print 'µÇÂ¼³É¹¦'
-        break
-    else:
-        print 'ÇëÖØĞÂÊäÈë£¡£¡'
+if __name__ == '__main__':
+    while True:
+        usn = str(input("Please input your study id: "))
+        psd = str(raw_input("Please input your psd:"))
+        if login(usn=usn, psd=psd):
+            print 'ç™»å½•æˆåŠŸ'
+            break
+        else:
+            print 'è¯·é‡æ–°è¾“å…¥ï¼ï¼'
 
-show_operator()
-expects = []
-operator = input("ÇëÊäÈë²Ù×÷£º")
-while operator != 5:
-    if operator == 1:
-        query_course(usn)
-    elif operator == 2:
-        print '¼ÓÈ¨¾ù·Ö£º' + str(calculate_avr_score(usn, excepts=expects))
-    elif operator == 3:
-        expects = []
-        while True:
-            print '¼ÓÈ¨¾ù·Ö£º' + str(calculate_avr_score(usn, excepts=expects))
-            exps = input("ÇëÊäÈëÒªÈ¥³ı¿ÆÄ¿µÄĞòºÅ£¬¶ººÅ¸ô¿ª£¨ÊäÈë-1½áÊø£©£º")
-            if type(exps) == type(1):
-                if exps == -1:
-                    break
-                expects.append(exps)
-            else:
-                for i in exps:
-                    expects.append(int(i))
-
-    elif operator == 4:
-        get_score(usn, login(usn, psd))
     show_operator()
-    operator = input("ÇëÊäÈë²Ù×÷£º")
+    expects = []
+    operator = input("è¯·è¾“å…¥æ“ä½œï¼š")
+    while operator != 5:
+        if operator == 1:
+            query_course(usn)
+        elif operator == 2:
+            print 'åŠ æƒå‡åˆ†ï¼š' + str(calculate_avr_score(usn, excepts=expects))
+        elif operator == 3:
+            expects = []
+            while True:
+                print 'åŠ æƒå‡åˆ†ï¼š' + str(calculate_avr_score(usn, excepts=expects))
+                exps = input("è¯·è¾“å…¥è¦å»é™¤ç§‘ç›®çš„åºå·ï¼Œé€—å·éš”å¼€ï¼ˆè¾“å…¥-1ç»“æŸï¼‰ï¼š")
+                if type(exps) == type(1):
+                    if exps == -1:
+                        break
+                    expects.append(exps)
+                else:
+                    for i in exps:
+                        expects.append(int(i))
 
-print '³ÌĞòÍË³ö'
+        elif operator == 4:
+
+            get_score(usn, login(usn, psd))
+        show_operator()
+        operator = input("è¯·è¾“å…¥æ“ä½œï¼š")
+
+    print 'ç¨‹åºé€€å‡º'

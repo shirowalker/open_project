@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>课程统计</title>
+    <!-- 最新版本的 Bootstrap 核心 CSS 文件 -->
+    <link rel="stylesheet" href="https://cdn.bootcss.com/bootstrap/3.3.7/css/bootstrap.min.css"
+          integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <!-- 最新的 Bootstrap 核心 JavaScript 文件 -->
+    <script type="text/javascript"
+            src="https://cdn.bootcss.com/bootstrap/3.3.7/js/bootstrap.min.js"
+            integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa"
+            crossorigin="anonymous">
+    </script>
+
+
+</head>
+
+<style>
+    h1 {
+        text-align: center;
+    }
+
+    div {
+        margin: 0px auto;
+        width: 80%;
+        text-align: center;
+    }
+
+    tr, th, td {
+        text-align: center;
+    }
+</style>
+
+<body>
+
+<h1>课程统计</h1>
+<div class="content">
+    <table class="table table-striped">
+        <tr>
+            <th>学号</th>
+            <th>课程总数</th>
+            <th>通过门数</th>
+            <th>必修加权</th>
+            <th>总加权</th>
+        </tr>
+        <tr>
+            <td>{{ result.study_id }}</td>
+            <td>{{ result.total_course_num }}</td>
+            <td>{{ result.pass_course_num }}</td>
+            <td>{{ result.master_weighted_average }}</td>
+            <td>{{ result.total_weighted_average }}</td>
+        </tr>
+    </table>
+
+
+    <!-- Contextual button for informational alert messages -->
+    <button id="btn_detail" type="button" class="btn btn-info">
+        查看详情
+    </button>
+
+    <!-- Contextual button for informational alert messages -->
+    <button id="btn_logout" type="button" class="btn btn-info">
+        退出
+    </button>
+
+
+    <script>
+        document.getElementById('btn_detail')
+            .onclick = function (ev) {
+            open("/detail", "_self")
+        }
+        document.getElementById('btn_logout')
+            .onclick = function (ev) {
+            open("/logout", "_self")
+        }
+    </script>
+
+</div>
+</body>
+</html>
